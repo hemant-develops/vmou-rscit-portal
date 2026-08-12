@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VMOU RS-CIT Learner Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="university-banner">
+      <img src="assets/vmou-banner.png" alt="Vardhman Mahaveer Open University" />
+    </header>
+
+    <main class="app-shell">
+      <nav class="top-nav" aria-label="Main navigation">
+        <a href="#" aria-current="page">Home</a>
+        <a href="#search">Search</a>
+        <a href="#events">Events</a>
+        <span class="nav-status">Admin preview</span>
+      </nav>
+
+      <section class="summary-band">
+        <div>
+          <p class="eyebrow">RS-CIT result archive</p>
+          <h1>Search learners across VMOU exam records</h1>
+          <p>
+            Fast local preview for learner lookup, exam attempts, marks, centre details,
+            and pass status. Live database connection can be added after this screen is approved.
+          </p>
+        </div>
+        <div class="metric-strip" aria-label="Archive summary">
+          <div>
+            <strong>10.1M</strong>
+            <span>records</span>
+          </div>
+          <div>
+            <strong>61</strong>
+            <span>exam events</span>
+          </div>
+          <div>
+            <strong>2012-2026</strong>
+            <span>coverage</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="search-panel" id="search">
+        <label class="field wide">
+          <span>Learner name, father name, or scholar number</span>
+          <input id="searchInput" type="text" placeholder="Search by scholar number, learner code, name, or father name" />
+        </label>
+        <label class="field">
+          <span>Exam event</span>
+          <select id="eventFilter">
+            <option value="All">All exam events</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Result</span>
+          <select id="statusFilter">
+            <option value="All">Any result</option>
+            <option value="PASS">PASS</option>
+            <option value="FAIL">FAIL</option>
+            <option value="ABSENT">ABSENT</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Date of birth</span>
+          <input id="dobInput" type="text" placeholder="DD-MM-YYYY" />
+        </label>
+        <div class="actions">
+          <button class="ghost-btn" id="clearBtn" type="button">Clear</button>
+          <button class="primary-btn" id="searchBtn" type="button">Search</button>
+        </div>
+      </section>
+
+      <div class="search-meta" id="searchMeta"></div>
+
+      <section class="content-grid">
+        <div>
+          <div class="section-heading">
+            <h2>Search results</h2>
+            <span id="resultCount">0 learners</span>
+          </div>
+          <div class="records-list" id="recordsList"></div>
+        </div>
+
+        <aside class="learner-detail" id="detailCard" aria-live="polite">
+          <h2>Learner details</h2>
+          <p>Select a learner to see complete exam history.</p>
+        </aside>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

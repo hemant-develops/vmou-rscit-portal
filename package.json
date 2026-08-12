@@ -1,0 +1,49 @@
+{
+  "name": "vmou-rscit-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "ingest": "tsx scripts/ingest.ts",
+    "clerk:ensure-admin": "tsx scripts/ensure-clerk-admin.ts",
+    "aws:rds-checklist": "powershell -ExecutionPolicy Bypass -File scripts/aws-rds-checklist.ps1",
+    "status:aws": "tsx scripts/status-aws.ts",
+    "status:clerk": "tsx scripts/status-clerk.ts",
+    "status:db": "tsx scripts/status-db.ts",
+    "typecheck": "tsc --noEmit",
+    "git:save": "powershell -ExecutionPolicy Bypass -File scripts/git-save.ps1",
+    "git:undo-local": "powershell -ExecutionPolicy Bypass -File scripts/git-undo-local.ps1",
+    "git:revert-last": "powershell -ExecutionPolicy Bypass -File scripts/git-revert-last-pushed.ps1"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.6.5",
+    "@neondatabase/serverless": "^1.0.1",
+    "csv-parse": "^7.0.2",
+    "drizzle-orm": "^0.44.5",
+    "mdb-reader": "^3.2.0",
+    "next": "^16.0.0",
+    "pdfjs-dist": "^5.4.54",
+    "pg": "^8.16.3",
+    "pg-copy-streams": "^7.0.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "xlsx": "^0.18.5",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.2.0",
+    "@types/pg": "^8.15.5",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "drizzle-kit": "^0.31.4",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2"
+  }
+}
