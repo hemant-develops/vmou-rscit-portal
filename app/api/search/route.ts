@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdminJson } from "@/lib/admin-access";
 import { hasAccessResultFile, searchAccessLearners } from "@/lib/access-fallback";
 import { databaseErrorMessage } from "@/lib/db/errors";
 import { isDatabaseConfigured } from "@/lib/db";
@@ -23,9 +22,6 @@ const noStoreHeaders = {
 };
 
 export async function GET(request: NextRequest) {
-  const unauthorized = await requireAdminJson();
-  if (unauthorized) return unauthorized;
-
   const started = performance.now();
   const result = searchParamsSchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
 

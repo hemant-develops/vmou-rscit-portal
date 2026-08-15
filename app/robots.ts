@@ -6,8 +6,8 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/search", "/events", "/add-data"],
-      disallow: ["/api/", "/learners/", "/sign-in/", "/login/", "/unauthorized/"]
+      allow: ["/", "/search"],
+      disallow: ["/api/", "/events/", "/add-data/", "/learners/", "/sign-in/", "/login/", "/unauthorized/"]
     },
     sitemap: new URL("/sitemap.xml", siteUrl).toString()
   };

@@ -3,8 +3,6 @@ import type { MetadataRoute } from "next";
 const routes = [
   { path: "/", priority: 1 },
   { path: "/search", priority: 0.9 },
-  { path: "/events", priority: 0.8 },
-  { path: "/add-data", priority: 0.6 }
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -1,5 +1,6 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import type { NextResponse } from "next/server";
+import { getCurrentClerkSession } from "@/lib/clerk-session";
 
 const FALLBACK_ADMIN_EMAIL = "hemantswami4412@gmail.com";
 const DEFAULT_ADMIN_ROLE = "admin";
@@ -177,17 +178,14 @@ export async function isCurrentAdmin() {
     return true;
   }
 
-  const authObject = await auth();
+  const authObject = await getCurrentClerkSession();
 
-  if (!authObject.isAuthenticated) {
+  if (!authObject) {
     return false;
   }
 
-  const sessionClaims =
-    authObject.sessionClaims as Record<string, unknown> | undefined;
-
-  const sessionEmail = readSessionEmail(sessionClaims);
-  const sessionRole = readSessionRole(sessionClaims);
+  const sessionEmail = readSessionEmail(authObject.sessionClaims);
+  const sessionRole = readSessionRole(authObject.sessionClaims);
   const allowedAdminEmails = adminEmails();
 
   if (!hasExplicitAdminRole() && sessionEmail && allowedAdminEmails.includes(sessionEmail)) {

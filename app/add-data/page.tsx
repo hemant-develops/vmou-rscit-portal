@@ -1,6 +1,14 @@
+import { redirect } from "next/navigation";
 import { AddDataPortal } from "@/components/add-data-portal";
+import { getCurrentClerkSession } from "@/lib/clerk-session";
 
-export default function AddDataPage() {
+export default async function AddDataPage() {
+  const session = await getCurrentClerkSession();
+
+  if (!session) {
+    redirect("/sign-in");
+  }
+
   return (
     <main className="app-shell">
       <section className="summary-band">
