@@ -16,6 +16,10 @@ export const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 
+if (connectionString) {
+  void pool.query("select 1").catch(() => undefined);
+}
+
 export function isDatabaseConfigured() {
   return Boolean(connectionString);
 }

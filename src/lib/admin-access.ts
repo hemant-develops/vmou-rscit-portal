@@ -3,6 +3,16 @@ import type { NextResponse } from "next/server";
 
 const FALLBACK_ADMIN_EMAIL = "hemantswami4412@gmail.com";
 const DEFAULT_ADMIN_ROLE = "admin";
+const ACCESS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+const userAccessCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    access?: ClerkAdminAccess;
+    pending?: Promise<ClerkAdminAccess>;
+  }
+>();
 
 export function normalizeEmail(value: string | null | undefined) {
   return value?.trim().toLowerCase() || "";
@@ -32,6 +42,10 @@ export function adminEmails() {
 
 export function adminRole() {
   return process.env.ADMIN_ROLE?.trim() || DEFAULT_ADMIN_ROLE;
+}
+
+export function hasExplicitAdminRole() {
+  return Boolean(process.env.ADMIN_ROLE?.trim());
 }
 
 export function bypassAdminCheck() {
@@ -95,6 +109,39 @@ export async function resolveClerkUserAccess(
     };
   }
 
+  const cached = userAccessCache.get(userId);
+  const now = Date.now();
+
+  if (cached?.access && cached.expiresAt > now) {
+    return cached.access;
+  }
+
+  if (cached?.pending) {
+    return cached.pending;
+  }
+
+  const pending = fetchClerkUserAccess(userId)
+    .then((access) => {
+      userAccessCache.set(userId, {
+        access,
+        expiresAt: Date.now() + ACCESS_CACHE_TTL_MS,
+      });
+      return access;
+    })
+    .catch((error) => {
+      userAccessCache.delete(userId);
+      throw error;
+    });
+
+  userAccessCache.set(userId, {
+    expiresAt: 0,
+    pending,
+  });
+
+  return pending;
+}
+
+async function fetchClerkUserAccess(userId: string): Promise<ClerkAdminAccess> {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
 
@@ -141,10 +188,15 @@ export async function isCurrentAdmin() {
 
   const sessionEmail = readSessionEmail(sessionClaims);
   const sessionRole = readSessionRole(sessionClaims);
+  const allowedAdminEmails = adminEmails();
+
+  if (!hasExplicitAdminRole() && sessionEmail && allowedAdminEmails.includes(sessionEmail)) {
+    return true;
+  }
 
   if (sessionEmail && sessionRole) {
     return (
-      adminEmails().includes(sessionEmail) &&
+      allowedAdminEmails.includes(sessionEmail) &&
       sessionRole === adminRole()
     );
   }
@@ -160,6 +212,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export async function requireAdminJson() {
   const { NextResponse } = await import("next/server");
+  const { headers } = await import("next/headers");
+
+  const headersList = await headers();
+
+  if (headersList.get("x-vmou-admin-verified") === "1") {
+    return null;
+  }
 
   if (await isCurrentAdmin()) {
     return null;

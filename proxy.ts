@@ -5,6 +5,7 @@ import {
   adminEmails,
   adminRole,
   bypassAdminCheck,
+  hasExplicitAdminRole,
   readSessionEmail,
   readSessionRole,
   resolveClerkUserAccess,
@@ -16,10 +17,16 @@ const publicPrefixes = [
   "/__clerk",
 ];
 
+const publicPaths = new Set([
+  "/robots.txt",
+  "/sitemap.xml",
+]);
+
 export default clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl;
 
   if (
+    publicPaths.has(pathname) ||
     publicPrefixes.some(
       (prefix) =>
         pathname === prefix ||
@@ -47,7 +54,7 @@ export default clerkMiddleware(async (auth, request) => {
       "[clerk-proxy] BYPASS_ADMIN_CHECK=true; allowing authenticated user through"
     );
 
-    return NextResponse.next();
+    return adminNext(request);
   }
 
   const allowedAdminEmails = adminEmails();
@@ -63,8 +70,13 @@ export default clerkMiddleware(async (auth, request) => {
 
   let resolvedEmail = sessionEmail;
   let resolvedRole = sessionRole;
+  const canUseEmailOnlyAdmin =
+    !hasExplicitAdminRole() &&
+    Boolean(sessionEmail) &&
+    allowedAdminEmails.includes(sessionEmail);
 
   if (
+    !canUseEmailOnlyAdmin &&
     (!resolvedEmail || !resolvedRole) &&
     authObject.userId
   ) {
@@ -77,8 +89,9 @@ export default clerkMiddleware(async (auth, request) => {
   }
 
   const isAllowed =
-    allowedAdminEmails.includes(resolvedEmail) &&
-    resolvedRole === allowedAdminRole;
+    canUseEmailOnlyAdmin ||
+    (allowedAdminEmails.includes(resolvedEmail) &&
+      resolvedRole === allowedAdminRole);
 
   // console.log("[clerk-proxy] Admin check:", {
   //   pathname,
@@ -95,8 +108,19 @@ export default clerkMiddleware(async (auth, request) => {
     );
   }
 
-  return NextResponse.next();
+  return adminNext(request);
 });
+
+function adminNext(request: Request) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-vmou-admin-verified", "1");
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+}
 
 export const config = {
   matcher: [

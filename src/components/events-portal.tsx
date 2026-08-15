@@ -61,9 +61,10 @@ export function EventsPortal() {
   const [, setSummary] = useState<EventsSummary | null>(null);
   const [status, setStatus] = useState("Loading exam events...");
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [loadingDistrictId, setLoadingDistrictId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/events", { cache: "no-store" })
+    fetch("/api/events?detail=summary")
       .then(readJsonResponse)
       .then((data) => {
         const rows = (data.events ?? []) as ExamEvent[];
@@ -77,6 +78,31 @@ export function EventsPortal() {
       })
       .catch((error) => setStatus(error instanceof Error ? error.message : "Could not load events."));
   }, []);
+
+  async function toggleEvent(event: ExamEvent) {
+    if (selectedEventId === event.id) {
+      setSelectedEventId(null);
+      return;
+    }
+
+    setSelectedEventId(event.id);
+
+    if (event.districts) {
+      return;
+    }
+
+    setLoadingDistrictId(event.id);
+    try {
+      const response = await fetch(`/api/events?detail=districts&eventId=${event.id}`);
+      const data = await readJsonResponse(response);
+      const districts = (data.districts ?? []) as DistrictSummary[];
+      setEvents((current) => current.map((row) => (row.id === event.id ? { ...row, districts } : row)));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not load district data.");
+    } finally {
+      setLoadingDistrictId(null);
+    }
+  }
 
   return (
     <>
@@ -92,7 +118,7 @@ export function EventsPortal() {
                 <button
                   aria-expanded={selected}
                   className="event-progress-button"
-                  onClick={() => setSelectedEventId(selected ? null : event.id)}
+                  onClick={() => void toggleEvent(event)}
                   type="button"
                 >
                   <span className="event-progress-heading">
@@ -116,7 +142,7 @@ export function EventsPortal() {
                   </span>
                 </button>
 
-                {selected ? <EventDetails event={event} /> : null}
+                {selected ? <EventDetails event={event} isLoadingDistricts={loadingDistrictId === event.id} /> : null}
               </article>
             );
           })
@@ -128,7 +154,7 @@ export function EventsPortal() {
   );
 }
 
-function EventDetails({ event }: { event: ExamEvent }) {
+function EventDetails({ event, isLoadingDistricts }: { event: ExamEvent; isLoadingDistricts: boolean }) {
   const counts = event.resultCounts ?? emptyCounts;
 
   return (
@@ -152,7 +178,9 @@ function EventDetails({ event }: { event: ExamEvent }) {
           <span>{formatNumber(event.districts?.length ?? 0)} districts</span>
         </div>
         <div className="district-table">
-          {(event.districts ?? []).length ? (
+          {isLoadingDistricts ? (
+            <div className="empty-state">Loading district data...</div>
+          ) : (event.districts ?? []).length ? (
             event.districts?.map((district) => (
               <div className="district-row" key={district.district}>
                 <div>

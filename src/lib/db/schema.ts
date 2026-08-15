@@ -34,6 +34,28 @@ export const sourceFiles = pgTable("source_files", {
   importedAt: timestamp("imported_at", { withTimezone: true }).defaultNow().notNull()
 });
 
+export const eventDistrictSummaries = pgTable(
+  "event_district_summaries",
+  {
+    examEventId: integer("exam_event_id")
+      .notNull()
+      .references(() => examEvents.id, { onDelete: "cascade" }),
+    district: text("district").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    appeared: integer("appeared").default(0).notNull(),
+    pass: integer("pass").default(0).notNull(),
+    fail: integer("fail").default(0).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    eventDistrictUnique: uniqueIndex("event_district_summaries_event_district_unique").on(
+      table.examEventId,
+      table.district
+    ),
+    eventIdx: index("event_district_summaries_event_idx").on(table.examEventId)
+  })
+);
+
 export const results = pgTable(
   "results",
   {
@@ -71,6 +93,8 @@ export const results = pgTable(
     ),
     dobIdx: index("results_dob_idx").on(table.dob),
     eventIdx: index("results_event_idx").on(table.examEventId),
+    eventLearnerIdx: index("results_event_learner_idx").on(table.examEventId, table.learnerKey),
+    eventResultStatusIdx: index("results_event_result_status_idx").on(table.examEventId, table.resultStatus),
     resultStatusIdx: index("results_result_status_idx").on(table.resultStatus),
     itgkCodeIdx: index("results_itgk_code_idx").on(table.itgkCode),
     rollNumberIdx: index("results_roll_number_idx").on(table.rollNumber)

@@ -197,6 +197,13 @@ export async function loadRows(options: LoadOptions) {
       [source.rows[0].id]
     );
 
+    await client.query(`
+      delete from event_district_summaries s
+      using exam_events e
+      where s.exam_event_id = e.id
+        and e.label in (select distinct event_label from ingest_results_staging)
+    `);
+
     await client.query("update source_files set row_count = $1 where id = $2", [inserted, source.rows[0].id]);
     await client.query("commit");
 

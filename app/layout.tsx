@@ -4,8 +4,20 @@ import { AppFrame } from "@/components/app-frame";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VMOU RS-CIT Learner Portal",
-  description: "Search VMOU RS-CIT learner results from PostgreSQL"
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: {
+    default: "VMOU RS-CIT Learner Portal",
+    template: "%s | VMOU RS-CIT Learner Portal"
+  },
+  description: "Fast VMOU RS-CIT learner result search, exam event summaries, and secure result imports.",
+  keywords: ["VMOU", "RS-CIT", "learner results", "exam events", "result search"],
+  alternates: {
+    canonical: "/"
+  },
+  robots: {
+    index: true,
+    follow: true
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

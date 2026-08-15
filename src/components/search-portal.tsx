@@ -67,7 +67,7 @@ export function SearchPortal() {
   );
 
   useEffect(() => {
-    fetch("/api/events", { cache: "no-store" })
+    fetch("/api/events")
       .then(readJsonResponse)
       .then((data) => {
         setEvents(data.events ?? []);

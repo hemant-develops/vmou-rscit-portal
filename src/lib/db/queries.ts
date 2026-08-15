@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "./index";
-import { examEvents, results, sourceFiles } from "./schema";
+import { eventDistrictSummaries, examEvents, results, sourceFiles } from "./schema";
 
 export type SearchFilters = {
   q?: string;
@@ -26,6 +26,71 @@ export async function listExamEvents() {
     .orderBy(desc(examEvents.year), desc(examEvents.month), asc(examEvents.label));
 }
 
+// export async function listExamEventSummaries() {
+//   const rows = await db
+//     .select({
+//       id: examEvents.id,
+//       label: examEvents.label,
+//       year: examEvents.year,
+//       month: examEvents.month,
+//       attempts: sql<number>`(count(${results.id}))::int`,
+//       learners: sql<number>`(count(distinct ${results.learnerKey}))::int`,
+//       pass: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'PASS'))::int`,
+//       fail: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'FAIL'))::int`,
+//       absent: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'ABSENT'))::int`,
+//       ufm: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'UFM'))::int`,
+//       rlw: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'RLW'))::int`,
+//       other: sql<number>`(
+//         count(${results.id}) filter (
+//           where coalesce(nullif(upper(${results.resultStatus}), ''), 'UNKNOWN') not in ('PASS', 'FAIL', 'ABSENT', 'UFM', 'RLW')
+//         )
+//       )::int`,
+//       withMarks: sql<number>`(count(${results.id}) filter (where ${results.marksTotal} is not null))::int`,
+//       averageMarks: sql<number | null>`round(avg(${results.marksTotal})::numeric, 2)::float`,
+//       lastUpdated: sql<string | null>`max(${results.updatedAt})::text`
+//     })
+//     .from(examEvents)
+//     .leftJoin(results, eq(results.examEventId, examEvents.id))
+//     .groupBy(examEvents.id, examEvents.label, examEvents.year, examEvents.month)
+//     .orderBy(desc(examEvents.year), desc(examEvents.month), asc(examEvents.label));
+
+//   const events = rows.map((row) => {
+//     const resultCounts = {
+//       PASS: toNumber(row.pass),
+//       FAIL: toNumber(row.fail),
+//       ABSENT: toNumber(row.absent),
+//       UFM: toNumber(row.ufm),
+//       RLW: toNumber(row.rlw),
+//       OTHER: toNumber(row.other)
+//     };
+//     const attempts = toNumber(row.attempts);
+
+//     return {
+//       id: row.id,
+//       label: row.label,
+//       year: row.year,
+//       month: row.month,
+//       attempts,
+//       appeared: attempts - resultCounts.ABSENT,
+//       learners: toNumber(row.learners),
+//       resultCounts,
+//       passPercentage: percentage(resultCounts.PASS, attempts - resultCounts.ABSENT),
+//       withMarks: toNumber(row.withMarks),
+//       averageMarks: row.averageMarks === null ? null : Number(row.averageMarks),
+//       lastUpdated: row.lastUpdated
+//     };
+//   });
+
+//   const summary = summarizeEvents(events);
+
+//   return {
+//     events,
+//     summary: {
+//       ...summary,
+//       passPercentage: percentage(summary.resultCounts.PASS, summary.appeared)
+//     }
+//   };
+// }
 export async function listExamEventSummaries() {
   const rows = await db
     .select({
@@ -51,49 +116,10 @@ export async function listExamEventSummaries() {
     })
     .from(examEvents)
     .leftJoin(results, eq(results.examEventId, examEvents.id))
-    .groupBy(examEvents.id, examEvents.label, examEvents.year, examEvents.month)
-    .orderBy(desc(examEvents.year), desc(examEvents.month), asc(examEvents.label));
-
-  const districtRows = await db
-    .select({
-      eventId: examEvents.id,
-      district: sql<string>`coalesce(nullif(upper(${results.extra}->>'DISTRICT'), ''), nullif(upper(${results.extra}->>'district'), ''), nullif(upper(${results.extra}->>'ITGKDST'), ''), 'NOT RECORDED')`,
-      attempts: sql<number>`(count(${results.id}))::int`,
-      appeared: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) <> 'ABSENT'))::int`,
-      pass: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'PASS'))::int`,
-      fail: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'FAIL'))::int`
-    })
-    .from(examEvents)
-    .leftJoin(results, eq(results.examEventId, examEvents.id))
-    .groupBy(
-      examEvents.id,
-      sql`coalesce(nullif(upper(${results.extra}->>'DISTRICT'), ''), nullif(upper(${results.extra}->>'district'), ''), nullif(upper(${results.extra}->>'ITGKDST'), ''), 'NOT RECORDED')`
-    )
-    .orderBy(asc(sql`coalesce(nullif(upper(${results.extra}->>'DISTRICT'), ''), nullif(upper(${results.extra}->>'district'), ''), nullif(upper(${results.extra}->>'ITGKDST'), ''), 'NOT RECORDED')`));
-
-  const districtsByEvent = new Map<number, Array<{
-    district: string;
-    attempts: number;
-    appeared: number;
-    pass: number;
-    fail: number;
-    passPercentage: number;
-  }>>();
-
-  districtRows.forEach((row) => {
-    const appeared = toNumber(row.appeared);
-    const item = {
-      district: row.district,
-      attempts: toNumber(row.attempts),
-      appeared,
-      pass: toNumber(row.pass),
-      fail: toNumber(row.fail),
-      passPercentage: percentage(toNumber(row.pass), appeared)
-    };
-    const list = districtsByEvent.get(row.eventId) ?? [];
-    list.push(item);
-    districtsByEvent.set(row.eventId, list);
-  });
+    // --- EXACT YE LINE CHANGE KI HAI ---
+    .where(sql`upper(trim(${examEvents.label})) = 'MARCH 2026'`) 
+    // ------------------------------------
+    .groupBy(examEvents.id, examEvents.label, examEvents.year, examEvents.month);
 
   const events = rows.map((row) => {
     const resultCounts = {
@@ -118,14 +144,125 @@ export async function listExamEventSummaries() {
       passPercentage: percentage(resultCounts.PASS, attempts - resultCounts.ABSENT),
       withMarks: toNumber(row.withMarks),
       averageMarks: row.averageMarks === null ? null : Number(row.averageMarks),
-      lastUpdated: row.lastUpdated,
-      districts: (districtsByEvent.get(row.id) ?? [])
-        .filter((district) => district.attempts > 0)
-        .sort((a, b) => b.appeared - a.appeared || a.district.localeCompare(b.district))
+      lastUpdated: row.lastUpdated
     };
   });
 
-  const summary = events.reduce(
+  const summary = summarizeEvents(events);
+
+  return {
+    events,
+    summary: {
+      ...summary,
+      passPercentage: percentage(summary.resultCounts.PASS, summary.appeared)
+    }
+  };
+}
+
+export async function listExamEventDistrictSummaries(eventId: number) {
+  const cachedRows = await db
+    .select({
+      district: eventDistrictSummaries.district,
+      attempts: eventDistrictSummaries.attempts,
+      appeared: eventDistrictSummaries.appeared,
+      pass: eventDistrictSummaries.pass,
+      fail: eventDistrictSummaries.fail
+    })
+    .from(eventDistrictSummaries)
+    .where(eq(eventDistrictSummaries.examEventId, eventId))
+    .orderBy(desc(eventDistrictSummaries.appeared), asc(eventDistrictSummaries.district));
+
+  if (cachedRows.length) {
+    return mapDistrictRows(cachedRows);
+  }
+
+  return refreshExamEventDistrictSummaries(eventId);
+}
+
+async function refreshExamEventDistrictSummaries(eventId: number) {
+  const districtRows = await db
+    .select({
+      district: sql<string>`coalesce(nullif(upper(${results.extra}->>'DISTRICT'), ''), nullif(upper(${results.extra}->>'district'), ''), nullif(upper(${results.extra}->>'ITGKDST'), ''), 'NOT RECORDED')`,
+      attempts: sql<number>`(count(${results.id}))::int`,
+      appeared: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) <> 'ABSENT'))::int`,
+      pass: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'PASS'))::int`,
+      fail: sql<number>`(count(${results.id}) filter (where upper(coalesce(${results.resultStatus}, '')) = 'FAIL'))::int`
+    })
+    .from(results)
+    .where(eq(results.examEventId, eventId))
+    .groupBy(
+      sql`coalesce(nullif(upper(${results.extra}->>'DISTRICT'), ''), nullif(upper(${results.extra}->>'district'), ''), nullif(upper(${results.extra}->>'ITGKDST'), ''), 'NOT RECORDED')`
+    )
+    .orderBy(asc(sql`coalesce(nullif(upper(${results.extra}->>'DISTRICT'), ''), nullif(upper(${results.extra}->>'district'), ''), nullif(upper(${results.extra}->>'ITGKDST'), ''), 'NOT RECORDED')`));
+
+  if (districtRows.length) {
+    await db
+      .insert(eventDistrictSummaries)
+      .values(
+        districtRows.map((row) => ({
+          examEventId: eventId,
+          district: row.district,
+          attempts: toNumber(row.attempts),
+          appeared: toNumber(row.appeared),
+          pass: toNumber(row.pass),
+          fail: toNumber(row.fail)
+        }))
+      )
+      .onConflictDoUpdate({
+        target: [eventDistrictSummaries.examEventId, eventDistrictSummaries.district],
+        set: {
+          attempts: sql`excluded.attempts`,
+          appeared: sql`excluded.appeared`,
+          pass: sql`excluded.pass`,
+          fail: sql`excluded.fail`,
+          updatedAt: sql`now()`
+        }
+      });
+  }
+
+  return mapDistrictRows(districtRows);
+}
+
+function mapDistrictRows(rows: Array<{
+  district: string;
+  attempts: number | string | null | undefined;
+  appeared: number | string | null | undefined;
+  pass: number | string | null | undefined;
+  fail: number | string | null | undefined;
+}>) {
+  return rows
+    .map((row) => {
+      const appeared = toNumber(row.appeared);
+      return {
+        district: row.district,
+        attempts: toNumber(row.attempts),
+        appeared,
+        pass: toNumber(row.pass),
+        fail: toNumber(row.fail),
+        passPercentage: percentage(toNumber(row.pass), appeared)
+      };
+    })
+    .filter((district) => district.attempts > 0)
+    .sort((a, b) => b.appeared - a.appeared || a.district.localeCompare(b.district));
+}
+
+function summarizeEvents(events: Array<{
+  attempts: number;
+  appeared: number;
+  learners: number;
+  withMarks: number;
+  resultCounts: Record<(typeof trackedResultStatuses)[number] | "OTHER", number>;
+}>) {
+  type EventTotals = {
+    events: number;
+    attempts: number;
+    appeared: number;
+    learners: number;
+    withMarks: number;
+    resultCounts: Record<(typeof trackedResultStatuses)[number] | "OTHER", number>;
+  };
+
+  return events.reduce<EventTotals>(
     (total, event) => {
       total.events += 1;
       total.attempts += event.attempts;
@@ -154,14 +291,6 @@ export async function listExamEventSummaries() {
       }
     }
   );
-
-  return {
-    events,
-    summary: {
-      ...summary,
-      passPercentage: percentage(summary.resultCounts.PASS, summary.appeared)
-    }
-  };
 }
 
 export async function searchLearners(filters: SearchFilters) {
